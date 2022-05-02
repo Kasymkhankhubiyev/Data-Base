@@ -9,41 +9,79 @@ order by Средний_Приоритет desc
 limit 3
 
 --exercise 2.2
-select count(project_id) as Количество_задач, extract (month from date_start) as Месяц, creator_id as Исполнитель
+select concat_ws('-',  count(project_id), extract (month from date_start), creator_id)
 from task
 where date_start between '2015-01-01' and '2015-12-31'
-group by Исполнитель, Месяц
+group by creator_id, date_start
+
+select count(project_id), extract (month from date_start), creator_id
+from task
+where date_start between '2015-01-01' and '2015-12-31'
+group by creator_id, date_start
 
 insert into task(project_id, title, priority, description, status, evaluation, task_cost, date_start, date_finish, creator_id, producer_id )
 values
-	(4,'Music_hub', 77, 'Computer Vision','Выполняется', 300000.00, '1010', '2015-02-12', null, 1, null),
-	(6, 'Bliz game', 70, 'Отладка', 'Новое', 573.00, '270', '2015-07-07',null, 5, null),
-	(3, 'GreenGo', 51, null, 'Новое', 321.50, '40', '2015-01-02', '2022-03-02', 5, null)
+	(2,'Music_hub', 100, 'Cats','Выполняется', 300000.00, '10190', '2015-02-12', null, 1, null),
+	(5, 'Bliz game', 75, 'Cocacola', 'Новое', 573.00, '27000', '2015-07-07',null, 5, null),
+	(3, 'GreenGo', 61, null, 'Новое', 321.50, '42323', '2015-01-02', '2022-03-02', 5, null)
 
---exercise 2.3 
-	select producer_id as id_executor, (count(date_start) - count(date_finish)) as "-", count(date_finish) as "+"
+--exercise 2.3 -- как разница времени и затрат
+	--select id, ((затраты - стоимость) + abs(затраты - стоимость))/2 as "+", ((затраты - стоимость) - abs(затраты - стоимость))/2 as "-"
+	--from task
+	--group by id
+	
+	
+	select producer_id as id_executor, 
+	sum(case  
+ 			when date_finish is not null 
+ 				then ((to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int) +
+ 					abs(to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int))/2
+ 			else ((to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int) +
+ 				abs(to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int))
+ 		end) as "+",
+ 	sum(case  
+ 			when date_finish is not null 
+ 				then ((to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int) -
+ 					abs(to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int))/2
+ 			else ((to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int) -
+ 				abs(to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int))
+ 		end) as "-"
 	from task
 	where producer_id is not null
 	group by producer_id 
 	
-	select task.producer_id as id_executor, "-", "+"
+	
+	select users.name, "+", "-"   
+    from 
+	users
+	inner join (select users.name  as Исполнитель, 
+				sum(case  
+ 						when date_finish is not null 
+ 							then ((to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int) +
+ 								abs(to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int))/2
+ 						else ((to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int) +
+ 							abs(to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int))
+ 					end) as "+" --все в срок
+		from 
+			task 
+			inner join users on producer_id = users.id 
+		group by Исполнитель, producer_id)positive
+	on users.name = positive."Исполнитель"
+	inner join
+	(select users.name  as Исполнитель, 
+				sum(case  
+ 						when date_finish is not null 
+ 							then ((to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int) -
+ 								abs(to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int))/2
+ 						else ((to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int) -
+ 							abs(to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int))
+ 					end) as "-" --все не в срок
 	from 
-		task
-		left join (
-			select producer_id, count(project_id) as "-"
-			from task
-			where not status = 'Закрыта'
-			group by producer_id)foo
-		on task.producer_id = foo.producer_id
-		left join (
-			select producer_id, count(project_id) as "+" 
-			from task 
-			where status ='Закрыта' 
-			group by producer_id
-			)fee
-		on task.producer_id = fee.producer_id 
-	group by "+", "-", id_executor 
-	having task.producer_id is not null 
+		task 
+		inner join users on producer_id = users.id 
+	group by users.name)negative
+	on users.name = negative."Исполнитель"
+group by users.name, "+", "-"
 	
 --exercise 2.4
 	select users.login as Постановщик, foo.login as Исполнитель 
@@ -54,27 +92,33 @@ values
 		from 
 			task 
 			inner join users on task.producer_id = users.id
-			group by creator_id, producer_id, login 
-			having producer_id is not null)foo
+			where producer_id is not null
+			group by creator_id, producer_id, login)foo
 	on task.creator_id = foo.creator_id 
 	group by Постановщик, Исполнитель
+	having concat(users.login, foo.login) not in (select concat(foo.login, users.login)
+													from task
+													inner join users on task.creator_id = users.id
+													inner join
+														(select creator_id, login
+														from 
+															task 
+															inner join users on task.producer_id = users.id
+															where producer_id is not null
+														group by creator_id, producer_id, login)foo
+													on task.creator_id = foo.creator_id)	
 	order by Постановщик
 	
-	select creator_id, producer_id 
-	from task
-	group by creator_id, producer_id 
-	having producer_id is not null
-	order by creator_id 
 	
 	
 --exercise 2.5	
 	
 	select login, char_length(login) as Кол_букв
 	from users
-	where char_length(login) in (select max(char_length(login)) from users) 
+	where char_length(login) in (select max(char_length(login)) from users)
 	
 	
---exercise 2.6
+--exercise 2.6  --
 	
 	create table book(
 	id bigserial not null primary key,
@@ -84,7 +128,10 @@ values
 	
 	insert into book(author, name)
 	values
-		('Название', 'Название')
+		('Привет', 'Привет')
+	
+	-- (Latin)латинские буквы однобайтовые, кирилица - двухбайтовая
+	delete from book
 		
 	select * from book
 	
@@ -147,42 +194,29 @@ having "+" is not null or "-" is not null
 
 --первый view 2.9.1
 create view statistics1 as
-select users.name, "+", "-"   
+select users.name, "+", "-", "Открыто", "Закрыто", "Выполняется", "Суммарная переработка", "Суммарная недоработка", "Суммарное время",
+"Cуммарное кол-во проектов", "Суммарное кол-во заказчиков", "Средний приоритет по задачам"   
 from 
 	users
-	left join (select users.name  as Исполнитель, count(title) as "+" --все в срок
-			from 
-				task 
-				left join users on producer_id = users.id 
-			where to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int > 0 or date_finish is null
-			group by Исполнитель, producer_id
-			having producer_id is not null)positive
-	on users.name = positive."Исполнитель"
-	left join
-	(select users.name  as Исполнитель, count(title) as "-" --все в срок
-	from 
-		task 
-		inner join users on producer_id = users.id 
-	where to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int < 0 --просрочил, но выполнил
-		or to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int < 0  -- просрочил, но все еще не выполнил
-	group by users.name)negative
+	join (select users.name  as Исполнитель, count(title) as "-" --все не в срок
+				from 
+					task 
+					inner join users on producer_id = users.id 
+				where to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int < 0 --просрочил, но выполнил
+				or to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int < 0  -- просрочил, но все еще не выполнил
+				group by users.name)negative
 	on users.name = negative."Исполнитель"
-group by users.name, "+", "-"
-having "+" is not null or "-" is not null
-
-select * from statistics1 
-
-drop view statistics1 
-
---второй view 2.9.2
-create view statistics2 as  --
-select users.name as "Исполнитель", "Открыто", "Закрыто", "Выполняется"
-from
-	users
+	left join (select users.name  as Исполнитель, count(title) as "+" --все в срок
+				from 
+					task 
+					left join users on producer_id = users.id 
+				where to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int > 0 or date_finish is null
+				group by Исполнитель, producer_id
+				having producer_id is not null)positive	
+	on users.name = positive."Исполнитель"
 	left join (select users.name as names, count(title) as "Открыто" 
 		from task
 			inner join users on producer_id = users.id 
-		--where status in ('Новое', 'Переоткрыта') --без этого если воспринимать как общее количесво проектов
 		group by users.name)oppen
 	on users.name = oppen.names 
 	left join (select users.name as names, count(title) as "Закрыто" 
@@ -197,57 +231,84 @@ from
 		where status = 'Выполняется'
 		group by users.name)process
 	on users.name = process.names
-group by users.name,"Открыто", "Закрыто", "Выполняется"
-having "Открыто" is not null or  "Закрыто"is not null or "Выполняется" is not null
-
-select * from statistics2 
-
-drop view statistics2 
-
---третий view 2.9.3
-create view statistics3 as 
-select users.name as "Исполнитель", "Суммарная переработка", "Суммарная недоработка", "Суммарное время"
-from
-	users
-	inner join (select producer_id as id_executor, (count(date_start) - count(date_finish)) as "Суммарная недоработка", count(date_finish) as "Суммарная переработка"
-	from task
-	where producer_id is not null
-	group by producer_id)ggg
-	on users.id = ggg.id_executor
-	left join (select producer_id, 
+	inner join (select users.name  as Исполнитель, 
+				sum(case  
+ 						when date_finish is not null 
+ 							then ((to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int) +
+ 								abs(to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int))/2
+ 						else ((to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int) +
+ 							abs(to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int))
+ 					end) as "Суммарная переработка" --все в срок
+		from 
+			task 
+			inner join users on producer_id = users.id 
+		group by Исполнитель, producer_id)overdone
+	on users.name = overdone."Исполнитель"
+	inner join
+	(select users.name  as Исполнитель, 
+				sum(case  
+ 						when date_finish is not null 
+ 							then ((to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int) -
+ 								abs(to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int))/2
+ 						else ((to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int) -
+ 							abs(to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int))
+ 					end) as "Суммарная недоработка" --все не в срок
+	from 
+		task 
+		inner join users on producer_id = users.id 
+	group by users.name)underdone
+	on users.name = underdone."Исполнитель"
+	join (select producer_id, 
  				sum(case  
  						when date_finish is not null then (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int
  						else (date_part('day', now()::timestamp - date_start::timestamp)*8)::int
  					end) as "Суммарное время"
  				from task
- 				group by producer_id
- 				having producer_id is not null)summtime
- 	on users.id =summtime.producer_id	
-group by "Исполнитель", "Суммарная переработка", "Суммарная недоработка", "Суммарное время"
-
-select * from statistics3 
-
-drop view statistics3
-
---четвертый view 2.9.4
-create view statistics4 as
-select users.name as "Исполнитель", "Cуммарное кол-во проектов", "Суммарное время"
-from 
-	users
-	inner join (select producer_id, count(title) as "Cуммарное кол-во проектов"
+ 				where producer_id is not null
+ 				group by producer_id)summtime
+ 	on users.id =summtime.producer_id
+ 	join (select producer_id, count(title) as "Cуммарное кол-во проектов"
 				from task
 				group by producer_id)tasks
 	on users.id = tasks.producer_id 
-	left join (select producer_id, 
- 				sum(case  
- 						when date_finish is not null then (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int
- 						else (date_part('day', now()::timestamp - date_start::timestamp)*8)::int
- 					end) as "Суммарное время"
- 				from task
- 				group by producer_id
- 				having producer_id is not null)summtime
- 	on users.id =summtime.producer_id
- 	group by "Исполнитель", "Cуммарное кол-во проектов", "Суммарное время"
- 	
-select * from statistics4 
-drop view statistics4
+	join (select producer_id, count(distinct(project_id)) as "Суммарное кол-во заказчиков"
+				from task
+				where producer_id is not null 
+				group by producer_id)customer
+	on users.id = customer.producer_id 	
+	join (select producer_id, round(avg(priority)) as "Средний приоритет по задачам"
+			from task
+			where producer_id is not null
+			group by producer_id)priority
+	on users.id = priority.producer_id
+group by users.name, "+", "-", "Открыто", "Закрыто", "Выполняется", "Суммарная переработка", "Суммарная недоработка", "Суммарное время",
+"Cуммарное кол-во проектов", "Суммарное кол-во заказчиков", "Средний приоритет по задачам"
+
+
+select * from statistics1 
+
+drop view statistics1 
+
+
+--exercise 2.10
+
+--1 - simple JOIN
+select name, login, email, department 
+from users
+inner join task
+on users.id = task.producer_id
+group by users.id, task.id;  
+
+--2 - вложенный подзапрос
+select * 
+from
+	(select id, name, login, email, department from users) as fee
+	join (select producer_id as id from task where producer_id is not null)foo
+	on fee.id = foo.id;
+
+--3 - соотнесенынй подзапрос
+select name, login, email, department
+from users as fee
+where id in (select producer_id 
+				from task as foo
+				where fee.id = foo.producer_id);
