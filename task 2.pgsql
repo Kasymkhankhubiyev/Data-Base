@@ -33,18 +33,18 @@ values
 	
 	select producer_id as id_executor, 
 	sum(case  
- 			when date_finish is not null 
- 				then ((to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int) +
- 					abs(to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int))/2
- 			else ((to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int) +
- 				abs(to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int))
+ 		when date_finish is not null 
+ 			then ((to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int) +
+ 				abs(to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int))/2
+ 		else ((to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int) +
+ 			abs(to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int))
  		end) as "+",
  	sum(case  
- 			when date_finish is not null 
- 				then ((to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int) -
- 					abs(to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int))/2
- 			else ((to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int) -
- 				abs(to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int))
+ 		when date_finish is not null 
+ 			then ((to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int) -
+ 				abs(to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int))/2
+ 		else ((to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int) -
+ 			abs(to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int))
  		end) as "-"
 	from task
 	where producer_id is not null
@@ -55,14 +55,14 @@ values
     from 
 	users
 	inner join (select users.name  as Исполнитель, 
-				sum(case  
- 						when date_finish is not null 
- 							then ((to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int) +
- 								abs(to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int))/2
- 						else ((to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int) +
- 							abs(to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int))
- 					end) as "+" --все в срок
-		from 
+			sum(case  
+ 				when date_finish is not null 
+ 					then ((to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int) +
+ 						abs(to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int))/2
+ 				else ((to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int) +
+ 					abs(to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int))
+ 				end) as "+" --все в срок
+			from 
 			task 
 			inner join users on producer_id = users.id 
 		group by Исполнитель, producer_id)positive
@@ -70,16 +70,16 @@ values
 	inner join
 	(select users.name  as Исполнитель, 
 				sum(case  
- 						when date_finish is not null 
- 							then ((to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int) -
- 								abs(to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int))/2
- 						else ((to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int) -
- 							abs(to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int))
+ 					when date_finish is not null 
+ 						then ((to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int) -
+ 							abs(to_char(task_cost, 'HH24')::int - (date_part('day', date_finish::timestamp - date_start::timestamp)*8)::int))/2
+ 					else ((to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int) -
+ 						abs(to_char(task_cost, 'HH24')::int - (date_part('day', now()::timestamp - date_start::timestamp)*8)::int))
  					end) as "-" --все не в срок
-	from 
-		task 
-		inner join users on producer_id = users.id 
-	group by users.name)negative
+				from 
+				task 
+				inner join users on producer_id = users.id 
+				group by users.name)negative
 	on users.name = negative."Исполнитель"
 group by users.name, "+", "-"
 	
@@ -97,16 +97,16 @@ group by users.name, "+", "-"
 	on task.creator_id = foo.creator_id 
 	group by Постановщик, Исполнитель
 	having concat(users.login, foo.login) not in (select concat(foo.login, users.login)
-													from task
-													inner join users on task.creator_id = users.id
-													inner join
-														(select creator_id, login
-														from 
-															task 
-															inner join users on task.producer_id = users.id
-															where producer_id is not null
-														group by creator_id, producer_id, login)foo
-													on task.creator_id = foo.creator_id)	
+							from task
+							inner join users on task.creator_id = users.id
+							inner join
+								(select creator_id, login
+								from 
+								task 
+								inner join users on task.producer_id = users.id
+								where producer_id is not null
+								group by creator_id, producer_id, login)foo
+								on task.creator_id = foo.creator_id)	
 	order by Постановщик
 	
 	
