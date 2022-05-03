@@ -320,27 +320,29 @@ select move_file('file3_copy', 1)
 select * from files
 
 --file search with mask
-create or replace function mask_search(trace varchar(100), depth int)
+create or replace function mask_search(mask varchar(30), folder_id int, depth int)
 returns table(file_name varchar(50), file_size int, create_date date, path_id int) as $$
 declare
 str varchar(30);
 counter int;
 res varchar(30);
 begin 
-	counter := 0;
-	str := '';
-	while counter < depth loop
-	str = str || '%/';
-	counter:= counter + 1;
-	res = '%' || trace|| '%';
-	end loop;
+	str := concat('%',mask,'%');
+	if folder_id != depth then
 	return query select files.file_name, files.file_size, files.create_date, files.path_id from files 
-	where files.path_id in (select link_id from links where path_name similar to str);
+	where files.file_name like str;  --широкий поиск
+	else 
+	return query select files.file_name, files.file_size, files.create_date, files.path_id from files
+	where files.path_id = folder_id and files.file_name like str; --локальный поиск
+	end if;-- files.path_id in (select link_id from links where path_name like str);
 	if not found then 
 	raise exception 'No file found';
 	end if;
 end;
 $$ language plpgsql 
 
+select * from files;
 
-select mask_search('./C/users/home/.', 10)
+select mask_search('file', 1, 2);
+
+select mask_search('file', 1, 1);
