@@ -7,7 +7,7 @@ drop table if exists player;
 create table player(
 player_id serial primary key,
 player_name varchar(20),
-player_points int);
+player_points int);	
 
 insert into player(player_name, player_points)
 values
@@ -45,7 +45,7 @@ commit;
 
 --exercise 5.2.1
 begin;
-	insert into player(player_id, player_name, player_points) values (7, 'Ghost', 70);
+	insert into player(player_id, player_name, player_points) values (11, 'Ghost', 70);
 	savepoint save_point;
 	update player 
 	set player_points = player_points - 2
@@ -53,34 +53,94 @@ begin;
 	rollback to savepoint save_point;
 commit;
 
+select * from player;
+
+--exercise 5.2.3  --рекурсия 
+drop table if exists web_game;
+
+create table web_game(
+id serial not null primary key,
+parrent_id int,
+spot_name varchar(22)
+);
+
+insert into web_game(parrent_id, spot_name)
+values
+	(null, 'Central'), -- 1
+	(1, 'Europe Server'), -- 2
+	(1, 'Central Asia Server'), -- 3
+	(1,'USA Server'), -- 4
+	(2, 'Russia Server'), -- 5
+	(2, 'Germany Server'), -- 6
+	(2, 'England Server'), -- 7
+	(5, 'Moscow'), -- 8
+	(5, 'Kazan'), -- 9
+	(5, 'Novosibirsk'), -- 10
+	(8, 'Emperior'), -- 11
+	(10, 'Black Force'), -- 12
+	(10, 'Little Pony'), -- 13
+	(12, 'BigKing'), -- 14
+	(12, 'Lord7'), -- 15
+	(12, 'Ckraken'); -- 16
+
+select * from web_game; 
+
+drop function if exists func7();
+
+create or replace function func7(spot_id int, spar_id int) returns table(sp_id int, sp_name varchar) as $$
+declare 
+p_id int;
+par_id int;
+begin
+	p_id:= spot_id ;
+	par_id:= spar_id;
+	if par_id is not null then
+	return query (select * from 
+							(
+								(select id, spot_name from web_game where id = p_id) 
+								union 
+								select * from func7(par_id, (select parrent_id from web_game where id = par_id))
+							)fee 
+						order by id desc);
+	else 
+	return query (select id, spot_name from web_game where id = p_id);
+	end if;
+end;
+$$ language plpgsql; 
+
+select * from func7(14, 12); --срабатывает функция
+
+select * from web_game;
+
+
+with recursive rec_function as (
+	select id, parrent_id, spot_name 
+	from web_game
+	where parrent_id = 2
+	union
+	select web_game.id, web_game.parrent_id , web_game.spot_name 
+	from web_game
+		join rec_function
+			on web_game.parrent_id = rec_function.id
+)
+
+
+create or replace function recursive (s_id int, s_par int)
+returns table (counter int, sname varchar)
+language plpgsql
+as $$
+begin
+    return query select id, spot_name from web_game where id = s_id;
+    if s_par is null then 
+        return query select * from recursive( select id, parrent_id from web_game where id = s_par);
+    end if;
+end $$;
+
+select *  from recursive (1, 1);
+
 select * from player
 
---exercise 5.2.3  --рекурсия
-select * from player
-
-drop function if exists func();
-
-create function func() returns trigger as $$
-	begin
-		update player set player_points = player_points + 2 where player_id = 7; --снова срабатывает триггер
-		return new;
-	end;
-$$
-	language plpgsql; 
-
-drop trigger if exists trigger1 on player;
-
-create trigger trigger1 
-	before update 
-	on player 
-	for each row
-execute procedure func();
-
-update player set player_points = player_points + 2 where player_id = 7; --срабатывает триггер
-
-select * from player
-
---5.2.2 -- бескончный цикл
+--5.2.2 -- бескончный цикл -- нужно функцию сделать!! рекурсивный запрос
 
 drop table if exists player_save 
 
@@ -143,9 +203,26 @@ sale_date date);
 insert into sales(item_name, sale_date)
 values 
 	('iPhone6', '2022-01-01'),
+	('iPad7', '2022-01-01'),
+	('iPhone6', '2022-01-01'),
+	('iPhone6', '2022-01-01'),
+	('iPhone6', '2022-01-01'),
+	('Xiaomi', '2021-12-29'),
+	('Xiaomi', '2021-12-29'),
+	('Xiaomi', '2021-12-29'),
+	('iPhone6', '2022-01-01'),
+	('iPhone6', '2022-01-01'),
+	('iPhone6', '2022-01-01'),
+	('MacAir', '2022-02-03'),
 	('MacAir', '2022-02-03'),
 	('iPhone8', '2022-02-28'),
+	('MacAir', '2022-02-03'),
+	('MacAir', '2022-02-03'),
+	('MacAir', '2022-02-03'),
 	('RedMi 6', '2022-04-12'),
+	('MacPro', '2022-03-07'),
+	('MacPro', '2022-03-07'),
+	('MacPro', '2022-03-07'),
 	('MacPro', '2022-03-07'),
 	('Macmini', '2022-04-25'),
 	('Xiaomi', '2021-12-29')
@@ -159,9 +236,9 @@ as $$
 declare
 	res_date date;
 begin
-	return query select sale_date --добавляем в результирующее множество
+	return query select distinct sale_date --добавляем в результирующее множество
 		from sales 
-		where sale_date >= start_date and sale_date <= end_date;	
+		where sale_date >= start_date and sale_date <= end_date;
 	if not found then 
 	raise exception 'No sales on this date';
 	end if;
@@ -205,6 +282,7 @@ values
 	('file3', 156, '2021-09-27', '2021-12-10', null, 2)
 	
 select * from links;
+
 select * from files;
 
 
@@ -343,6 +421,201 @@ $$ language plpgsql
 
 select * from files;
 
-select mask_search('file', 1, 2);
+select add_new_file('abc', 1, 45, '2019-10-17');
+
+select mask_search('abc', 1, 2);
 
 select mask_search('file', 1, 1);
+
+--exercise 5.5
+
+select * from users
+
+drop table if exists task;
+
+create table task(
+id bigserial not null primary key,
+project_id bigint not null,
+title varchar(30) not null,
+priority bigint not null,
+description varchar(100),
+status varchar(30) check(status in ('Новое','Переоткрыта','Выполняется','Закрыта')),
+evaluation decimal(8,2) not null,
+task_cost interval hour not null,
+date_start date not null,
+date_finish date,
+creator_id bigint not null,
+producer_id bigint,
+foreign key (creator_id) references users (id) on delete cascade,
+foreign key (project_id) references project (id) on delete cascade,
+foreign key (producer_id) references users (id) on delete set null
+)
+
+insert into task(project_id, title, priority, description, status, evaluation, task_cost, date_start, date_finish, creator_id, producer_id )
+values 
+	(3,'Newage rocket', 10, 'To dominate in Universe we ...', 'Выполняется', 1000.00,  '70','2016-01-02', null, 1, 7),
+	(6, 'Experience', 7, 'Have fun with Airbnb.', 'Новое', 570.00, '30','2022-01-01', null,  3, null),
+	(2, 'Salary', 2, 'Reestimate employees salaries', 'Переоткрыта', 321.50, '40','2022-02-12', null,  3, 2),
+	(5,'Открытое окно', 57, null, 'Переоткрыта', 37000.00, '140','2016-01-03', '2017-03-02' , 1, 6),
+	(4, 'Чат-бот', 70, 'Нужен для улучшения взаимодействия клиента с приложением', 'Выполняется', 57000.00, '240','2021-11-21', null,  3, 5),
+	(3, 'Кабель', 51, 'На чиле', 'Закрыта', 321.50, '40', '2016-01-01', '2016-03-01', 1, 7),
+	(2,'C1', 57, null, 'Новое', 300.00, '140', '2022-02-12', null, 2, 7),
+	(4, 'Кряк', 70, 'Хайп', 'Выполняется', 57.00, '240', '2021-07-07', '2023-06-27', 3, 5),
+	(3, 'Чат-бот тесты', 51, 'Тестировка', 'Новое', 321.50, '40', '2022-01-02', '2022-03-02', 5, 8),
+	(4, 'Бух.учет', 70, null, 'Закрыта', 57.00, '240', '2021-07-07', '2021-07-27', 4, 2),
+	(3, 'Налоговая Декларация', 51, 'Экспорт товара', 'Новое', 321.50, '40', '2022-02-02', '2022-03-02', 6, 2)
+	
+select * from task
+
+select * from project
+
+create table history(
+id serial not null primary key,
+task_id int,
+task_in_status varchar(20),
+modification_date date,
+project_id bigint not null,
+title varchar(30) not null,
+priority bigint not null,
+description varchar(100),
+status varchar(30) check(status in ('Новое','Переоткрыта','Выполняется','Закрыта')),
+evaluation decimal(8,2) not null,
+task_cost interval hour not null,
+date_start date not null,
+date_finish date,
+creator_id bigint not null,
+producer_id bigint,
+foreign key (creator_id) references users (id) on delete cascade,
+foreign key (project_id) references project (id) on delete cascade,
+foreign key (producer_id) references users (id) on delete set null
+)
+
+
+---сохраниение при изменении или добавлении
+create or replace function save_changes() returns trigger as $$
+declare --надо вытащить все значения из task
+tid int;
+help_str varchar;
+prid int;
+ttitle varchar(30);
+tpriority int;
+tdesc varchar(30);
+tstat varchar(30);
+teval decimal(8,2);
+tcost interval hour;
+tsd date;
+tdf date;
+tcid int;
+tpid int;
+begin 
+	select task.id from task into tid where task.id = old.id;
+	select task.project_id from task into prid where task.id = old.id;
+	select task.title from task into ttitle where task.id = old.id;
+	select task.priority from task into tpriority where task.id = old.id;
+	select task.description from task into tdesc where task.id = old.id;
+	select task.status from task into tstat where task.id = old.id;
+	select task.evaluation from task into teval where task.id = old.id;
+	select task.task_cost from task into tcost where task.id = old.id;
+	select task.date_start from task into tsd where task.id = old.id;
+	select task.date_finish from task into tdf where task.id = old.id;
+	select task.creator_id from task into tcid where task.id = old.id;
+	select task.producer_id from task into tpid where task.id = old.id;
+	insert into history(task_id, task_in_status, modification_date, project_id, title, priority, description, status, evaluation, task_cost, date_start, date_finish, creator_id, producer_id)
+	values (tid, 'Сохранено', now()::date, prid, ttitle, tpriority, tdesc, tstat, teval, tcost, tsd, tdf, tcid, tpid);
+	return new;
+end;
+$$ language plpgsql 
+
+
+drop trigger if exists trigger_save on task;
+
+create trigger trigger_save
+	before insert or update
+	on task 
+	for each row
+execute procedure save_changes();
+
+update task set priority = priority + 2 where id = 7; --срабатывает триггер
+
+select * from task where id = 7;
+
+select * from history 
+
+--удаление задачи и сохранение в историю
+create or replace function delete_and_save() returns trigger as $$
+declare --надо вытащить все значения из task
+tid int;
+help_str varchar;
+prid int;
+ttitle varchar(30);
+tpriority int;
+tdesc varchar(30);
+tstat varchar(30);
+teval decimal(8,2);
+tcost interval hour;
+tsd date;
+tdf date;
+tcid int;
+tpid int;
+begin 
+	select task.id from task into tid where task.id = old.id;
+	select task.project_id from task into prid where task.id = old.id;
+	select task.title from task into ttitle where task.id = old.id;
+	select task.priority from task into tpriority where task.id = old.id;
+	select task.description from task into tdesc where task.id = old.id;
+	select task.status from task into tstat where task.id = old.id;
+	select task.evaluation from task into teval where task.id = old.id;
+	select task.task_cost from task into tcost where task.id = old.id;
+	select task.date_start from task into tsd where task.id = old.id;
+	select task.date_finish from task into tdf where task.id = old.id;
+	select task.creator_id from task into tcid where task.id = old.id;
+	select task.producer_id from task into tpid where task.id = old.id;
+	--delete from task where id = old.id;
+	insert into history(task_id, task_in_status, modification_date, project_id, title, priority, description, status, evaluation, task_cost, date_start, date_finish, creator_id, producer_id)
+	values (tid, 'Удалено', now()::date, prid, ttitle, tpriority, tdesc, tstat, teval, tcost, tsd, tdf, tcid, tpid);
+	return new;
+end;
+$$ language plpgsql 
+
+
+drop trigger if exists trigger_delete on task;
+
+create trigger trigger_delete
+	before delete
+	on task 
+	for each row
+execute procedure delete_and_save();
+
+delete from task where id = 2; --срабатывает триггер
+
+select * from task where id = 2;
+
+select * from history 
+
+--просмотр удаленных задач
+
+create or replace function deleted_tasks_list()
+returns table(task_id int, task_in_status varchar(20), modification_date date) as $$
+begin 
+	return query select history.task_id, history.task_in_status, history.modification_date from history
+	where history.task_in_status = 'Удалено';
+	if not found then 
+	raise exception 'No file found';
+	end if;
+end;
+$$ language plpgsql 
+
+select deleted_tasks_list()
+
+--восстановление удаленной задачи
+create or replace function back_to_life() returns trigger as $$
+begin 
+	return query select history.task_id, history.task_in_status, history.modification_date from history
+	where history.task_in_status = 'Удалено';
+	if not found then 
+	raise exception 'No file found';
+	end if;
+end;
+$$ language plpgsql
+
+select back_to_life()
