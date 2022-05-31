@@ -238,6 +238,18 @@ select find_on_date('2022-01-01', '2022-12-31');
 
 select find_on_date('2020-01-01', '2020-12-31'); --ошибка
 
+WITH RECURSIVE r AS (
+    SELECT 
+         sale_date from sales
+    UNION
+    SELECT 
+        sale_date+integer'1' AS sale_date 
+    FROM r
+    WHERE sale_date in (select sale_date from sales where sale_date = r.sale_date+1 limit 1) and sale_date < '2023-01-01'
+)
+
+SELECT * FROM r;
+
 
 --exercise 5.4
 drop table if exists links, files cascade
