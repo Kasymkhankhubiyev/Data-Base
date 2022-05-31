@@ -122,21 +122,8 @@ with recursive rec_function as (
 	from web_game
 		join rec_function
 			on web_game.parrent_id = rec_function.id
+	where web_game.parrent_id is not NULL
 )
-
-
-create or replace function recursive (s_id int, s_par int)
-returns table (counter int, sname varchar)
-language plpgsql
-as $$
-begin
-    return query select id, spot_name from web_game where id = s_id;
-    if s_par is null then 
-        return query select * from recursive( select id, parrent_id from web_game where id = s_par);
-    end if;
-end $$;
-
-select *  from recursive (1, 1);
 
 select * from player
 
